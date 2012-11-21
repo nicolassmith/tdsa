@@ -1,0 +1,172 @@
+#!/usr/bin/env python
+
+from optparse import *
+import sys
+
+usage = """
+generate SNR/horizon data
+output is:
+   snrs_m1_m2.npy: np array with a quantity scaled so that dividing by a
+   distance (in Mpc) gives you an SNR at that distance and dividing it by an
+   SNR gives you the horizon distance for that SNR
+
+   nosqzsnr_m1_m2.npy: same as above for non-squeezed psd
+
+   filtcavsnr_m1_m2.npy: same as above for filter cavity PSD
+
+   tc_m1_m2.npy: np array of coalescence times
+
+   f_m1_m2.npy: truncated frequencies from flow-f_ISCO
+
+   psds_m1_m2.npy: truncated PSDs
+
+   nosqzpsd_m1_m2.npy & filtcavpsd_m1_m2: truncated PSDs
+"""
+
+def parse_cl():
+  """
+  command line parser
+  """
+  parser = OptionParser(usage=usage)
+
+  parser.add_option('-o','--m1',action='store',type='float',default=None,help='mass 1')
+  parser.add_option('-t','--m2',action='store',type='float',default=None,help='mass 2')
+  parser.add_option('-f','--flow',action='store',type='float',default=None,help='low frequency cutoff')
+  parser.add_option('-d','--datadir',action='store',type='string',default=None,help='directory containing psd data')
+  parser.add_option('-s','--systype',action='store',type='string',default=None,help='system type - bns, nsbh or bbh - to set reference for horizon distance plot. defualt is 445.')
+
+  (options,args) = parser.parse_args()
+
+  return options, sys.argv[1:]
+
+opts, args = parse_cl()
+
+import numpy as np
+import os
+import sys
+import lal
+import pylab
+from pylal import spawaveform as spa
+
+def snrhor(m1,m2,psd,fs,rho=8.,Deff=0.,rho0=8.):
+    
+  #first compute A factor that appears in both snr & horizon distance
+  c = lal.LAL_C_SI
+  G = lal.LAL_G_SI
+  msun = lal.LAL_MSUN_SI
+  mpc = lal.LAL_PC_SI*10**6
+  mchirp = spa.chirpmass(m1,m2)*c**3/G #convert from seconds to kilograms
+  A = (5./24./np.pi)**(1./2.) * G*msun/c**2/mpc * (np.pi*G*msun/c**3)**(-1./6.) * (mchirp/msun)**(5./6.) #dropped the minus sign since we don't need it here
+    
+  #now do the integral
+  fsevthr = np.zeros_like(fs)
+  for i,f in enumerate(fs):
+    upto = fs <= f
+    fsevthr[i] = np.trapz(fs[upto]**(-7./3.)/psd[upto],x=fs[upto])
+  x = 2.*A*np.sqrt(fsevthr)
+    
+  #figure out whether we want to use Deff or SNR, but not both
+  if rho != 8. and Deff != 0.:
+    raise ValueError("Can't specify a rho and Deff at the same time!")
+  elif Deff == 0.:
+      Deff = max(x)/rho
+    
+  return x/Deff, x/rho0
+    
+
+def comptc(m1,m2,fs):
+    
+  ttc = np.zeros_like(fs)
+  maxt = spa.chirptime(m1,m2,4,min(fs),spa.ffinal(m1,m2))
+  for i,f in enumerate(fs):
+    ttc[i] = maxt - spa.chirptime(m1,m2,4,min(fs),f)
+        
+  return ttc
+
+#get input values
+m1 = opts.m1
+m2 = opts.m2 
+flow = opts.flow
+datadir = opts.datadir
+
+#load the psd and frequency data
+ddir = os.path.abspath(datadir)
+fullpsds = np.load(os.path.join(ddir,'psds.npy'))
+fullf = np.load(os.path.join(ddir,'f.npy'))
+fullnosqzpsd = np.load(os.path.join(ddir,'nosqzpsd.npy'))
+fullfiltcavpsd = np.load(os.path.join(ddir,'filtcavpsd.npy'))
+
+#determine the frequency range and restrict everything to it
+fmax = spa.ffinal(m1,m2)
+frange = (fullf <= fmax) & (fullf >= flow) 
+f = fullf[frange]
+
+#time before coalescence
+tc = comptc(m1,m2,f)
+
+#squeezing angle (=index), horizon distance, psd, snr 
+#compute SNR at Deff = 1 so any SNR follows  as SNR_new = SNR/D_new
+#compute Dhor at SNR = 1 so any Dhor follows as Dhor_new = Dhor/SNR_new
+nosqzpsd = fullnosqzpsd[frange]
+nosqzsnr = snrhor(m1,m2,nosqzpsd,f,Deff=1.,rho0=1.)[0]
+
+filtcavpsd = fullfiltcavpsd[frange]
+filtcavsnr = snrhor(m1,m2,filtcavpsd,f,Deff=1.,rho0=1.)[0]
+
+psds = np.array([psd[frange] for psd in fullpsds])
+snrs = np.zeros((len(psds),len(f)))
+hors = np.zeros((len(psds),len(f)))
+
+for i in range(len(psds)):
+    snrs[i]= snrhor(m1,m2,psds[i],f,Deff=1.,rho0=1.)[0]
+
+fext = '_'+str(m1)+'_'+str(m2)
+
+
+#dictionary of reference horizon distances (taken from rates paper)
+syshors = {'bns':445., 'nsbh':927.,'bbh':2187}
+
+if opts.systype is None:
+  refhor = 445.
+else:
+  refhor = syshors[opts.systype]
+
+#make sanity check plots
+pylab.clf()
+pylab.figure()
+for i in range(len(psds)):
+    pylab.loglog(f,psds[i])
+pylab.loglog(f,nosqzpsd)
+pylab.loglog(f,filtcavpsd)
+ax = pylab.gca()
+ax.set_xlim([min(f),max(f)])
+pylab.title('PSDs')
+pylab.savefig('psds'+fext+'.pdf')
+
+pylab.clf()
+pylab.figure()
+for i in range(len(snrs)):
+    pylab.semilogx(tc,snrs[i]/refhor)
+ax = pylab.gca()
+ax.set_xlim([max(tc),min(tc)])
+pylab.title('SNR as a function of time to coalescence (Deff='+str(refhor)+'Mpc)')
+pylab.savefig('snr'+fext+'.pdf')
+
+pylab.clf()
+pylab.figure()
+for i in range(len(hors)):
+    pylab.semilogx(tc,snrs[i]/8.)
+ax = pylab.gca()
+ax.set_xlim([max(tc),min(tc)])
+pylab.title('Horizon Distance as a function of time to coalescence (SNR=8)')
+pylab.savefig('horizon'+fext+'.pdf')
+
+#save eevrything
+np.save('tc'+fext,tc)
+np.save('f'+fext,f)
+np.save('psds'+fext,psds)
+np.save('snrs'+fext,snrs)
+np.save('nosqzsnr'+fext,nosqzsnr)
+np.save('nosqzpsd'+fext,nosqzpsd)
+np.save('filtcavsnr'+fext,filtcavsnr)
+np.save('filtcavpsd'+fext,filtcavpsd)

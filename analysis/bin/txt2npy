@@ -1,0 +1,38 @@
+#!/usr/bin/env python
+#noisecurves in .txt files to .npy files
+
+import numpy as np
+import os
+import sys
+import glob
+
+#takes a path to the noise curve txt files as the only argument\
+ncpath = sys.argv[1]
+
+#glob for the noisecurves
+txtfiles = glob.glob(os.path.join(os.path.abspath(ncpath),'*.txt'))
+
+#save as a single numpy array with the index representing the squueze angle
+#along with two other files for the no squeeze and f-dependent case
+
+f = np.loadtxt(txtfiles[0],usecols=(0,))
+psds = np.zeros((91,len(f)))
+
+for fname in txtfiles:
+  noisecurve = np.loadtxt(fname,usecols=(1,))
+  if 'nosqz' in fname:
+    nosqzpsd = noisecurve
+  elif 'filtcav' in fname:
+    filtcavpsd = noisecurve
+  elif 'sqz' in fname:
+    psds[int(os.path.split(fname)[1].split('.')[0].split('z')[1])] = noisecurve
+  else:
+    print >>sys.stderr, 'Unknown noise curve!: '+fname
+    sys.exit(1)
+
+np.save('psds',psds)
+np.save('f',f)
+np.save('nosqzpsd',nosqzpsd)
+np.save('filtcavpsd',filtcavpsd)
+
+
