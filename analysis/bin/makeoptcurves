@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+#make the optimal noise curves by minimizing the psd at each time/frequency
+#plot the SNR and squeezing angle as a function of time to coalescence 
+
+import numpy as np
+import glob
+import pylab
+import lal
+from pylal import spawaveform as spa
+
+ffname = glob.glob('f_*.npy')[0]
+suffix = ffname.rsplit('.',1)[0].split('f_')[1]
+masses = suffix.split('_')
+f = np.load(ffname)
+psds = np.load(glob.glob('psds_*.npy')[0])
+nosqzpsd = np.load(glob.glob('nosqzpsd_*.npy')[0])
+nosqzsnr = np.load(glob.glob('nosqzsnr_*.npy')[0])
+filtcavpsd = np.load(glob.glob('filtcavpsd_*.npy')[0])
+filtcavsnr = np.load(glob.glob('filtcavsnr_*.npy')[0])
+tc = np.load(glob.glob('tc_*.npy')[0])
+snrs = np.load(glob.glob('snrs_*.npy')[0])
+
+#find the squeezing angle that maximizes the SNR at each t before coalescence
+#do this by choosing the angle that minimizes the psd at each frequency
+thmax = np.zeros_like(tc)
+
+for i in range(len(tc)):
+    thmax[i] = psds[:,i].argmin()
+
+#first compute A factor that appears in both snr & horizon distance
+c = lal.LAL_C_SI    
+G = lal.LAL_G_SI
+msun = lal.LAL_MSUN_SI
+mpc = lal.LAL_PC_SI*10**6
+mchirp = spa.chirpmass(float(masses[0]),float(masses[1]))*c**3/G #convert from seconds to kilograms
+A = (5./24./np.pi)**(1./2.) * G*msun/c**2/mpc * (np.pi*G*msun/c**3)**(-1./6.) * (mchirp/msun)**(5./6.) #dropped the minus sign since we don't need it here
+
+almostsnr = np.zeros_like(f)
+snropt = np.zeros_like(f)
+
+#now do the integral using the trapezoidal rule
+#use Deff=1Mpc for SNR and SNR0=1 for horizon calculation (scale from there)
+for i in range(1,len(f)):
+    almostsnr[i] = ((f[i]**(-7./3.)/psds[thmax[i]][i]) + (f[i-1]**(-7./3.)/psds[thmax[i-1]][i-1])) * (f[i] - f[i-1]) * 0.5
+
+snropt= 2*A*np.sqrt(almostsnr.cumsum())
+
+#plot squeeze angle as a function of time
+pylab.clf()
+pylab.figure()
+pylab.semilogx(tc,thmax)
+ax = pylab.gca()
+ax.set_xlim([max(tc),min(tc)])
+pylab.xlabel('Time before coalescence')
+pylab.ylabel('Squeezing angle')
+pylab.title('Squeezing angle as a function of time before coalescence')
+pylab.savefig('sqztc_'+suffix+'.pdf')
+
+#plot snr as a function of time
+#use the horizon distance of the unsqueezed psd
+hordist = max(nosqzsnr)/8.
+thbest = -99
+besthor = 0.
+for i,x in enumerate(snrs):
+  if x[-1] > besthor:
+    thbest = i
+    besthor = x[-1]
+
+pylab.clf()
+pylab.figure()
+pylab.semilogx(tc,snropt/hordist,label='optimized')
+pylab.semilogx(tc,filtcavsnr/hordist,label='filter cavity')
+pylab.semilogx(tc,nosqzsnr/hordist,label='no squeezing')
+pylab.semilogx(tc,snrs[thbest]/hordist,label='angle fixed at '+str(thbest))
+ax = pylab.gca()
+ax.set_xlim([max(tc),min(tc)])
+pylab.xlabel('Time before coalescence')
+pylab.ylabel('SNR')
+pylab.title('SNR as a function of time to coalescence')
+pylab.legend(loc=4)
+pylab.savefig('snrtc_'+suffix+'.pdf')
