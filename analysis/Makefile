@@ -2,6 +2,7 @@ SHELL=/bin/sh
 
 DATACMD=$(realpath bin/txt2npy)
 SNRCMD=$(realpath bin/makeSNRdata)
+OPTCMD=${realpath bin/makeoptcurves}
 NOISECURVETXTDIR='../../noisecurves/results/'
 ORIGDIR=$(CURDIR)
 
@@ -14,7 +15,7 @@ BBHM2=10
 FLOW=10
 DATADIR=noisecurves
 
-all: data bns nsbh bbh
+all: data bns nsbh bbh optcurves
 
 data:
 	mkdir noisecurves
@@ -31,6 +32,11 @@ nsbh:
 bbh:
 	mkdir bbhdata
 	cd bbhdata && python $(SNRCMD) --m1=$(BBHM1) --m2=$(BBHM2) --flow=$(FLOW) --datadir=$(ORIGDIR)/noisecurves --systype=bbh
+
+optcurves:
+	cd bnsdata && python ${OPTCMD}
+	cd nsbhdata && python ${OPTCMD}
+	cd bbhdata && python ${OPTCMD}
 
 allclean: dataclean bnsclean nsbhclean bbhclean
 

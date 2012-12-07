@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 #make the optimal noise curves by minimizing the psd at each time/frequency
-#plot the SNR and squeezing angle as a function of time to coalescence 
+#plot the SNR and squeezing angle as a function of time to coalescence
+#also, plot the psds
 
 import numpy as np
 import glob
@@ -23,9 +24,11 @@ snrs = np.load(glob.glob('snrs_*.npy')[0])
 #find the squeezing angle that maximizes the SNR at each t before coalescence
 #do this by choosing the angle that minimizes the psd at each frequency
 thmax = np.zeros_like(tc)
+optpsd = np.zeros_like(tc)
 
 for i in range(len(tc)):
     thmax[i] = psds[:,i].argmin()
+    optpsd[i] = psds[thmax[i]][i]
 
 #first compute A factor that appears in both snr & horizon distance
 c = lal.LAL_C_SI    
@@ -79,3 +82,19 @@ pylab.ylabel('SNR')
 pylab.title('SNR as a function of time to coalescence')
 pylab.legend(loc=4)
 pylab.savefig('snrtc_'+suffix+'.pdf')
+
+#plot the psds
+pylab.clf()
+pylab.figure()
+pylab.loglog(f,optpsd,label='optimized')
+pylab.loglog(f,filtcavpsd,label='filter cavity')
+pylab.loglog(f,nosqzpsd,label='no squeezing')
+pylab.loglog(f,psds[thbest],label='angle fixed at '+str(thbest))
+ax = pylab.gca()
+ax.set_xlim([min(f),max(f)])
+pylab.xlabel('f')
+pylab.ylabel('Sn(f)')
+pylab.title('PSDs')
+pylab.legend(loc=1)
+pylab.savefig('psdopt_'+suffix+'.pdf')
+
