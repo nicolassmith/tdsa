@@ -20,7 +20,7 @@ ifo.Squeezer.SQZAngle = angle*pi/180;             % SQZ phase [radians]
 [sss,nnn] = gwinc(f_LOLO,f_HIHI,ifo,SourceModel,2);
 
 f = nnn.Freq.';
-noiseTot = nnn.Total.';
+noiseTot = sqrt(nnn.Total.');
 
 end
 

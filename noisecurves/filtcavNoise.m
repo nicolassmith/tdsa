@@ -28,7 +28,7 @@ ifo.Squeezer.FilterCavity.Rot = 0*pi/180;         % phase rotation after cavity
 [sss,nnn] = gwinc(f_LOLO,f_HIHI,ifo,SourceModel,2);
 
 f = nnn.Freq.';
-noiseTot = nnn.Total.';
+noiseTot = sqrt(nnn.Total.');
 
 end
 
