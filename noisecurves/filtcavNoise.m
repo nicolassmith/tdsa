@@ -1,4 +1,4 @@
-function [f,noiseTot] = filtcavNoise(fLim,sqzdB,antisqzdB)
+function [f,noiseTot] = filtcavNoise(fLim,sqzdB)
 % returns noise of aligo plus squeezer with filter cav
 
 f_LOLO = fLim(1);
@@ -13,8 +13,8 @@ ifo.modeSR = 0;
 
 ifo.Squeezer.Type = 'Freq Dependent';
 ifo.Squeezer.AmplitudedB = sqzdB;         % SQZ amplitude [dB]
-ifo.Squeezer.AntiAmplitudedB = antisqzdB;         % antiSQZ amplitude [dB]
-ifo.Squeezer.InjectionLoss = 0.05;      %power loss to sqz
+%ifo.Squeezer.AntiAmplitudedB = antisqzdB;         % antiSQZ amplitude [dB]
+ifo.Squeezer.InjectionLoss = 0.15;      %power loss to sqz
 ifo.Squeezer.SQZAngle = 0;              % SQZ phase [radians]
 
 % Parameters for frequency dependent squeezing

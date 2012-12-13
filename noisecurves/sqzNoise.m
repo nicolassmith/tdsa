@@ -1,4 +1,4 @@
-function [f,noiseTot] = sqzNoise(fLim,sqzdB,antisqzdB,angle)
+function [f,noiseTot] = sqzNoise(fLim,sqzdB,angle)
 % Runs GWINC with some nominal parameters
 
 f_LOLO = fLim(1);
@@ -13,8 +13,8 @@ ifo.modeSR = 0;
 
 ifo.Squeezer.Type = 'Freq Independent';
 ifo.Squeezer.AmplitudedB = sqzdB;         % SQZ amplitude [dB]
-ifo.Squeezer.AntiAmplitudedB = antisqzdB;         % antiSQZ amplitude [dB]
-ifo.Squeezer.InjectionLoss = 0.05;      %power loss to sqz
+%ifo.Squeezer.AntiAmplitudedB = antisqzdB;         % antiSQZ amplitude [dB]
+ifo.Squeezer.InjectionLoss = 0.15;      %power loss to sqz
 ifo.Squeezer.SQZAngle = angle*pi/180;             % SQZ phase [radians]
 
 [sss,nnn] = gwinc(f_LOLO,f_HIHI,ifo,SourceModel,2);
