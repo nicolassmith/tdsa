@@ -1,5 +1,9 @@
-function [f,noiseTot] = filtcavNoise(fLim,sqzdB)
+function [f,noiseTot,range] = filtcavNoise(fLim,sqzdB,filtdetune)
 % returns noise of aligo plus squeezer with filter cav
+
+if nargin<3
+    filtdetune = -31;
+end
 
 f_LOLO = fLim(1);
 f_HIHI = fLim(2);
@@ -18,7 +22,7 @@ ifo.Squeezer.InjectionLoss = 0.15;      %power loss to sqz
 ifo.Squeezer.SQZAngle = 0;              % SQZ phase [radians]
 
 % Parameters for frequency dependent squeezing
-ifo.Squeezer.FilterCavity.fdetune = -22;  % detuning [Hz]
+ifo.Squeezer.FilterCavity.fdetune = filtdetune;  % detuning [Hz]
 ifo.Squeezer.FilterCavity.L = 100;        % cavity length
 ifo.Squeezer.FilterCavity.Ti = 0.185e-3;       % input mirror trasmission [Power]
 ifo.Squeezer.FilterCavity.Te = 3e-6;          % end mirror trasmission
@@ -29,6 +33,10 @@ ifo.Squeezer.FilterCavity.Rot = 0*pi/180;         % phase rotation after cavity
 
 f = nnn.Freq.';
 noiseTot = sqrt(nnn.Total.');
+
+if nargout>2
+    range = sss.effr0ns;
+end
 
 end
 
