@@ -1,0 +1,109 @@
+#!/usr/bin/env python
+
+#from optparse import *
+#import sys
+
+#usage = """
+#"""
+
+#def parse_cl():
+#  """
+#  command line parser
+#  """
+#  parser = OptionParser(usage=usage)
+
+#  parser.add_option('-l','--Mlow',action='store',type='float',default=None,nargs=2,help='lowest
+#  masses)
+
+#  options,args = parser.parse_args()
+
+#  return options, sys.argv[1:]
+
+#opts,args = parse_cl()
+
+#print opts.test
+
+
+import numpy as np
+from pylal import spawaveform as spa
+
+def snr(m1,m2,psd,fs,Deff=445.):
+    
+  #first compute A factor that appears in both snr & horizon distance
+  c = lal.LAL_C_SI
+  G = lal.LAL_G_SI
+  msun = lal.LAL_MSUN_SI
+  mpc = lal.LAL_PC_SI*10**6
+  mchirp = spa.chirpmass(m1,m2)*c**3/G #convert from seconds to kilograms
+  A = (5./24./np.pi)**(1./2.) * G*msun/c**2/mpc * (np.pi*G*msun/c**3)**(-1./6.) * (mchirp/msun)**(5./6.) #dropped the minus sign since we don't need it here
+    
+  #now do the integral
+  return 2*A*np.sqrt(np.trapz(fs**(-7./3.)/psd,x=fs))/Deff
+
+def psdlen(f,psd):
+
+  if len(f) < len(psd):
+    return psd[:len(f)]
+  elif len(f) > len(psd):
+    return np.hstack((psd,np.ones(len(f)-len(psd))*psd[-1]))
+  elif len(f) == len(psd):
+    return psd
+  else:
+    print >>sys.stderr, "WTF?"
+    sys.exit(1)
+
+
+fall = np.load('/Users/lprice/tdsa/analysis/noisecurves/f.npy')
+
+fmin = 10
+
+#minimum masses
+mmin1 = 1.0
+mmin2 = 1.0
+
+#maximum masses
+mmax1 = 3.0
+mmax2 = 3.0
+
+#step size - for now done in m1, m2 but should probably be done in mchirp or tau0 or something
+mstep = 0.1
+
+#fiducial masses to compare to 
+mf1 = 1.4
+mf2 = 1.4
+
+#fiducial horizon distance of 445Mpc
+deff = 445
+
+#store m1 and m2
+m1 = np.zeros(len(np.arange(mmin1,mmax1,mstep))*len(np.arange(mmin2,mmax2,mstep)))
+m2 = np.zeros_like(m1)
+
+#snrf - snr for fiducial tuning
+#snrh - snr for best horizon distance
+snrf = np.zeros_like(m1)
+snrh = np.zeros_like(m1)
+
+#make the "optimal" psd
+thmax = 
+psdopt0 = np.zeros_like(thmax)
+for i,th in enumerate(thmax_:
+  psdopt0[i] = psds[th]
+
+i = 0
+#compute masses
+for mass1 in np.arange(mmin1,mmax1,mstep):
+  for mass2 in np.arange(mmin2,mmax2,mstep):
+    m1[i] = mass1
+    m2[i] = mass2
+    fmax = spa.ffinal(mass1,mass2)
+    frange = (fall <= fmax) & (fall >= flow)
+    f = fall[frange]
+    psdopt = psdlen(f,psdopt0)
+    psdhmax = psds[thmxa][frange]
+    snrf[i] = snr(mass1,mass2,psdopt,f,deff)
+    snrh[i] = snr(mass1,mass2,psdhmax,f,deff)
+    i += 1
+
+
+

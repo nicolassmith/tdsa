@@ -30,6 +30,8 @@ for i in range(len(tc)):
     thmax[i] = psds[:,i].argmin()
     optpsd[i] = psds[thmax[i]][i]
 
+np.save('psdopt_'+suffix,optpsd)
+
 #first compute A factor that appears in both snr & horizon distance
 c = lal.LAL_C_SI    
 G = lal.LAL_G_SI
@@ -44,7 +46,9 @@ snropt = np.zeros_like(f)
 #now do the integral using the trapezoidal rule
 #use Deff=1Mpc for SNR and SNR0=1 for horizon calculation (scale from there)
 for i in range(1,len(f)):
-    almostsnr[i] = ((f[i]**(-7./3.)/psds[thmax[i]][i]) + (f[i-1]**(-7./3.)/psds[thmax[i-1]][i-1])) * (f[i] - f[i-1]) * 0.5
+    almostsnr[i] = ((f[i]**(-7./3.)/psds[thmax[i]][i]**2) +
+        (f[i-1]**(-7./3.)/psds[thmax[i-1]][i-1]**2)) * (f[i] - f[i-1]) * 0.5 #note the square in the denominator
+
 
 snropt= 2*A*np.sqrt(almostsnr.cumsum())
 
